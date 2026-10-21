@@ -9,6 +9,10 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.boot.web.servlet.*;
 import org.springframework.context.annotation.*;
 import org.springframework.http.HttpStatus;
+import io.micrometer.core.instrument.Counter;
+import io.micrometer.core.instrument.MeterRegistry;
+import io.micrometer.core.instrument.Tags;
+import io.micrometer.core.instrument.Timer;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.filter.*;
 
@@ -16,6 +20,7 @@ import java.io.*;
 import java.time.*;
 import java.util.*;
 import java.util.regex.*;
+import java.util.concurrent.TimeUnit;
 
 @SpringBootApplication
 public class InstrumentationApplication {
@@ -24,8 +29,9 @@ public class InstrumentationApplication {
     }
 
     @Bean
-    FilterRegistrationBean<TraceFilter> traceFilter(ObjectMapper json, @Value("${app.environment:local}") String environment) {
-        return new FilterRegistrationBean<>(new TraceFilter(json, environment));
+    FilterRegistrationBean<TraceFilter> traceFilter(ObjectMapper json, MeterRegistry metrics,
+                                                     @Value("${app.environment:local}") String environment) {
+        return new FilterRegistrationBean<>(new TraceFilter(json, metrics, environment));
     }
 
     @RestController
@@ -40,12 +46,13 @@ public class InstrumentationApplication {
         private static final Pattern TRACEPARENT = Pattern.compile(
                 "^00-([0-9a-f]{32})-([0-9a-f]{16})-([0-9a-f]{2})$");
         private static final Pattern STOCK_ROUTE = Pattern.compile("/api/v1/products/[^/]+/stock");
-        private static final ThreadLocal<Trace> CURRENT = new ThreadLocal<>();
         private final ObjectMapper json;
+        private final MeterRegistry metrics;
         private final String environment;
 
-        TraceFilter(ObjectMapper json, String environment) {
+        TraceFilter(ObjectMapper json, MeterRegistry metrics, String environment) {
             this.json = json;
+            this.metrics = metrics;
             this.environment = environment;
         }
 
@@ -54,17 +61,24 @@ public class InstrumentationApplication {
                 throws ServletException, IOException {
             var trace = createTrace(request);
             var started = System.nanoTime();
-            CURRENT.set(trace);
-            response.setHeader("traceparent", "00-" + trace.traceId + "-" + trace.spanId + "-" + trace.flags);
+            TraceContext.set(trace);
+            response.setHeader("traceparent", "00-" + trace.traceId() + "-" + trace.spanId() + "-" + trace.flags());
             try {
                 chain.doFilter(request, response);
             } finally {
-                logRequest(json, environment, request, response, trace, (System.nanoTime() - started) / 1_000_000);
-                CURRENT.remove();
+                long elapsedNanos = System.nanoTime() - started;
+                try {
+                    recordMetrics(metrics, request, response, elapsedNanos);
+                    if (routeFor(request.getRequestURI()) != null) {
+                        logRequest(json, environment, request, response, trace, elapsedNanos / 1_000_000);
+                    }
+                } finally {
+                    TraceContext.clear();
+                }
             }
         }
 
-        private static Trace createTrace(HttpServletRequest request) {
+        private static TraceContext.ServerSpan createTrace(HttpServletRequest request) {
             Enumeration<String> headers = request.getHeaders("traceparent");
             String value = headers != null && headers.hasMoreElements() ? headers.nextElement() : null;
             boolean duplicate = headers != null && headers.hasMoreElements();
@@ -75,10 +89,12 @@ public class InstrumentationApplication {
                     do {
                         spanId = randomHex(16);
                     } while (spanId.equals(match.group(2)));
-                    return new Trace(match.group(1), spanId, match.group(3), UUID.randomUUID().toString());
+                    return new TraceContext.ServerSpan(match.group(1), spanId, match.group(2), match.group(3),
+                            UUID.randomUUID().toString());
                 }
             }
-            return new Trace(randomHex(32), randomHex(16), "00", UUID.randomUUID().toString());
+            return new TraceContext.ServerSpan(randomHex(32), randomHex(16), null, "00",
+                    UUID.randomUUID().toString());
         }
 
         private static String randomHex(int length) {
@@ -89,28 +105,58 @@ public class InstrumentationApplication {
             return value.substring(0, length);
         }
 
+        private static void recordMetrics(MeterRegistry metrics, HttpServletRequest request,
+                                          HttpServletResponse response, long elapsedNanos) {
+            Route route = routeFor(request.getRequestURI());
+            if (route == null) {
+                return;
+            }
+            String method = request.getMethod();
+            String statusClass = (response.getStatus() / 100) + "xx";
+            Tags tags = Tags.of("service", route.service(), "method", method,
+                    "route", route.template(), "status_class", statusClass);
+            Counter.builder("http.server.requests").tags(tags).register(metrics).increment();
+            Timer.builder("http.server.request.duration")
+                    .tags(tags)
+                    .serviceLevelObjectives(Duration.ofMillis(50), Duration.ofMillis(100),
+                            Duration.ofMillis(250), Duration.ofMillis(500), Duration.ofSeconds(1),
+                            Duration.ofMillis(2500), Duration.ofSeconds(5))
+                    .register(metrics)
+                    .record(elapsedNanos, TimeUnit.NANOSECONDS);
+        }
+
+        private static Route routeFor(String uri) {
+            if ("/api/v1/sales".equals(uri)) {
+                return new Route("sales-service", "/api/v1/sales");
+            }
+            if (STOCK_ROUTE.matcher(uri).matches()) {
+                return new Route("product-service", "/api/v1/products/{id}/stock");
+            }
+            return null;
+        }
+
         private static void logRequest(ObjectMapper json, String environment, HttpServletRequest request,
-                                       HttpServletResponse response, Trace trace, long durationMs) throws IOException {
-            String route = STOCK_ROUTE.matcher(request.getRequestURI()).matches()
-                    ? "/api/v1/products/{id}/stock" : "unmatched";
+                                       HttpServletResponse response, TraceContext.ServerSpan trace,
+                                       long durationMs) throws IOException {
+            Route route = routeFor(request.getRequestURI());
             var record = new LinkedHashMap<String, Object>();
             record.put("timestamp", Instant.now().toString());
             record.put("level", response.getStatus() >= 500 ? "ERROR" : "INFO");
-            record.put("service", "product-service");
+            record.put("service", route == null ? "product-service" : route.service());
             record.put("version", "0.1.0");
             record.put("environment", environment);
-            record.put("trace_id", trace.traceId);
-            record.put("span_id", trace.spanId);
-            record.put("correlation_id", trace.correlationId);
+            record.put("trace_id", trace.traceId());
+            record.put("span_id", trace.spanId());
+            record.put("correlation_id", trace.correlationId());
             record.put("event", "http.request.completed");
             record.put("message", "HTTP request completed.");
             record.put("duration_ms", durationMs);
             record.put("http_method", request.getMethod());
-            record.put("route", route);
+            record.put("route", route == null ? "unmatched" : route.template());
             record.put("http_status", response.getStatus());
             System.out.println(json.writeValueAsString(record));
         }
 
-        private record Trace(String traceId, String spanId, String flags, String correlationId) { }
+        private record Route(String service, String template) { }
     }
 }
