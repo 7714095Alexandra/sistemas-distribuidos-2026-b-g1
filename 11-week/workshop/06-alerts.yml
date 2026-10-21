@@ -1,0 +1,51 @@
+groups:
+  - name: inventory-stock-query-burn-rate
+    interval: 1m
+    rules:
+      - alert: ProductStockQueryAvailabilityFastBurn
+        expr: |
+          (
+            (
+              (sum(increase(http_server_requests_total{service="product-service",method="GET",route="/api/v1/products/{id}/stock",status_class!~"2xx|4xx"}[1h])) or vector(0))
+              /
+              sum(increase(http_server_requests_total{service="product-service",method="GET",route="/api/v1/products/{id}/stock"}[1h]))
+            ) / (1 - 0.995) > 14.4
+          )
+          and
+          (
+            (
+              (sum(increase(http_server_requests_total{service="product-service",method="GET",route="/api/v1/products/{id}/stock",status_class!~"2xx|4xx"}[5m])) or vector(0))
+              /
+              sum(increase(http_server_requests_total{service="product-service",method="GET",route="/api/v1/products/{id}/stock"}[5m]))
+            ) / (1 - 0.995) > 14.4
+          )
+        labels:
+          severity: critical
+          team: by_sellens
+        annotations:
+          summary: "Product stock-query availability is burning its error budget rapidly"
+          runbook_url: "https://github.com/7714095Alexandra/sistemas-distribuidos-2026-b-g1/blob/main/11-week/workshop/07-runbook.md"
+
+      - alert: ProductStockQueryAvailabilitySlowBurn
+        expr: |
+          (
+            (
+              (sum(increase(http_server_requests_total{service="product-service",method="GET",route="/api/v1/products/{id}/stock",status_class!~"2xx|4xx"}[6h])) or vector(0))
+              /
+              sum(increase(http_server_requests_total{service="product-service",method="GET",route="/api/v1/products/{id}/stock"}[6h]))
+            ) / (1 - 0.995) > 6
+          )
+          and
+          (
+            (
+              (sum(increase(http_server_requests_total{service="product-service",method="GET",route="/api/v1/products/{id}/stock",status_class!~"2xx|4xx"}[30m])) or vector(0))
+              /
+              sum(increase(http_server_requests_total{service="product-service",method="GET",route="/api/v1/products/{id}/stock"}[30m]))
+            ) / (1 - 0.995) > 6
+          )
+        labels:
+          severity: warning
+          team: by_sellens
+        annotations:
+          summary: "Product stock-query availability is steadily burning its error budget"
+          runbook_url: "https://github.com/7714095Alexandra/sistemas-distribuidos-2026-b-g1/blob/main/11-week/workshop/07-runbook.md"
