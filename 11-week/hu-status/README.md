@@ -22,7 +22,7 @@
 - **CP2:** Defined the structured-log contract and authored seven illustrative JSON records. The records were parser-validated for required fields, a common trace ID, chronological timestamps, and the two documented failure examples; they are design examples, not production logs.
 - **CP3:** The first part added incoming W3C `traceparent` handling, response context, and JSON request logging. The second part was completed after the initial CP3 close: an outbound `RestClient` call now propagates the same trace ID in a child span to the documented Product stock route; a request counter and latency histogram are exposed at `/metrics`.
 - **CP3 verification:** `mvn clean verify` completed with `BUILD SUCCESS`; Surefire reported 2 tests, 0 failures, 0 errors, and 0 skipped. The integration test uses a local simulated dependency to capture the actual outbound HTTP request, verify trace ID/span relationships, and verify both metric families and recorded samples. It exercises the harness, not the real BySellens service.
-- **CP4:** Documented proposed latency, traffic, error, and saturation metrics for the four journey services, including PromQL and cardinality estimates. The metrics are not implemented or measured, and the PromQL was not run against Prometheus.
+- **CP4:** Documented a proposed catalog of latency, traffic, error, and saturation metrics for the four real journey services, including PromQL and cardinality estimates. Separately, the CP3 harness implements a request counter and latency histogram exposed at `/metrics`; these harness metrics are not measurements from the real services. The proposed PromQL queries have not been run against an external Prometheus server.
 
 ## 3. Blockers and risks
 - CP3 is implemented only as an isolated harness: the caller probe and local Product stock endpoint return `501`; no real sales are validated or persisted, and no real stock is read or updated. The test dependency is simulated locally.
@@ -54,3 +54,5 @@
 - [CP3 second part: automated tests](https://github.com/7714095Alexandra/sistemas-distribuidos-2026-b-g1/commit/6ab8352e155a6f0f6b19a9b31dffb4583973cada)
 - [CP3 second part: run guide and test evidence](https://github.com/7714095Alexandra/sistemas-distribuidos-2026-b-g1/commit/f470b5836277cee88e9bc104ded1cc7366168ed2)
 - [CP4 metric catalog](https://github.com/7714095Alexandra/sistemas-distribuidos-2026-b-g1/commit/47e1da9c57949fa1d9ec1c1e51bbc5381407089a)
+- [CP5 initial delivery status](https://github.com/7714095Alexandra/sistemas-distribuidos-2026-b-g1/commit/5492849073403e73b2a4adb530b97c0c66e42f02)
+- [CP5 status update with CP3 verification](https://github.com/7714095Alexandra/sistemas-distribuidos-2026-b-g1/commit/15c13ddea2b602eb33ca04b5439b6bc23fea4e62)
