@@ -8,18 +8,19 @@
 - TEAM: by_sellens
 - DOCS_REPO: https://github.com/code-corhuila/bysellens-docs
 - BOUNDARY: React admin UI → inventory-service product registration, POST /api/v1/inventory/products
-- CLAIM_ISSUE: [PEGA AQUÍ LA URL DEL ISSUE]
-- REFLECTION_DOC: [PEGA AQUÍ LA URL DEL NUEVO GOOGLE DOCS]
-- LIBRARY_BOOK: Costas Santos, Jesús. Seguridad informática. First edition. Bogotá: Ediciones de la U, 2011. ISBN 978-958-8675-70-1. Consulted pages: 90–93. Library call number: pending confirmation.
-- LIBRARY_RECORD_TIME: pending confirmation
+- CLAIM_ISSUE: https://github.com/code-corhuila/bysellens-docs/issues/54
+- REFLECTION_DOC: https://docs.google.com/document/d/1YDt45oYGj1d0XUBGX1jPpDSTwUM3DbhM56toLEdlWoI/edit?usp=sharing
+- LIBRARY_BOOK: Costas Santos, Jesús. Seguridad informática. First edition. Bogotá: Ediciones de la U, 2011. ISBN 978-958-8675-70-1. Consulted pages: 90–93. Call number: Pending confirmation with the library.
+- LIBRARY_RECORD_TIME: Pending confirmation with the library.
 <!-- CONFIG-END -->
 
 ## Scope
 
-The selected trust boundary is between the administrator's React browser client and inventory-service, limited to product registration through POST /api/v1/inventory/products. Inventory receives product information and initialStock. Downstream ProductCreated processing and current-stock management in product-service are excluded.
+- Analyze the trust boundary between the administrator's React browser client and inventory-service when registering products through POST /api/v1/inventory/products.
+- Include product data, purchase and sale prices, and initialStock.
+- Exclude downstream ProductCreated processing and current-stock management, which belongs to product-service.
+- Record the documentation discrepancy: the second-cut architecture requires JWT validation and ADMIN authorization, but the OpenAPI declares security: []. Actual enforcement remains to be verified; this is not a confirmed vulnerability.
 
 ## Pending information
 
-- Confirmed URL of the CP0 reservation issue.
-- URL of the new Google Docs document for the personal reflection.
-- Library call number and library record time.
+- Library call number and visit record date and time in America/Bogota remain pending confirmation with the library.
