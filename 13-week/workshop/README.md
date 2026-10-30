@@ -10,7 +10,7 @@
 - BOUNDARY: React admin UI → inventory-service product registration, POST /api/v1/inventory/products
 - CLAIM_ISSUE: https://github.com/code-corhuila/bysellens-docs/issues/54
 - REFLECTION_DOC: https://docs.google.com/document/d/1YDt45oYGj1d0XUBGX1jPpDSTwUM3DbhM56toLEdlWoI/edit?usp=sharing
-- STORIES: https://github.com/code-corhuila/bysellens-docs/issues/61, https://github.com/code-corhuila/bysellens-docs/issues/62
+- STORIES: https://github.com/code-corhuila/bysellens-docs/issues/61, https://github.com/code-corhuila/bysellens-docs/issues/67, https://github.com/code-corhuila/bysellens-docs/issues/62
 - LIBRARY_BOOK: Costas Santos, Jesús. Seguridad informática. First edition. Bogotá: Ediciones de la U, 2011. ISBN 978-958-8675-70-1. Consulted pages: 90–93. Call number: Pending confirmation with the library.
 - LIBRARY_RECORD_TIME: Pending confirmation with the library.
 <!-- CONFIG-END -->
