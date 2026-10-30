@@ -1,0 +1,68 @@
+name: Proposed inventory security checks
+
+on:
+  pull_request:
+    paths:
+      - "13-week/workshop/04-security-ci/**"
+      - ".github/workflows/**"
+
+permissions:
+  contents: read
+
+jobs:
+  secret-scan:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  dependency-audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Obtain the inventory implementation
+        env:
+          INVENTORY_REPOSITORY: ${{ vars.INVENTORY_REPOSITORY }}
+          INVENTORY_TOKEN: ${{ secrets.INVENTORY_REPOSITORY_TOKEN }}
+        run: |
+          test -n "$INVENTORY_REPOSITORY" || {
+            echo "::error::INVENTORY_REPOSITORY is not configured; the implementation repository is TBD."
+            exit 1
+          }
+          test -n "$INVENTORY_TOKEN" || {
+            echo "::error::INVENTORY_REPOSITORY_TOKEN is required for a private implementation repository."
+            exit 1
+          }
+          git clone --depth 1 "https://x-access-token:${INVENTORY_TOKEN}@github.com/${INVENTORY_REPOSITORY}.git" inventory-service
+      - name: Audit Java dependencies
+        working-directory: inventory-service
+        run: |
+          if test -x ./mvnw; then
+            ./mvnw -B org.owasp:dependency-check-maven:check
+          elif test -f pom.xml; then
+            mvn -B org.owasp:dependency-check-maven:check
+          elif test -x ./gradlew; then
+            ./gradlew dependencyCheckAnalyze
+          else
+            echo "::error::No Maven or Gradle build was found in the inventory implementation."
+            exit 1
+          fi
+
+  authorization-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install PostgreSQL client
+        run: sudo apt-get update && sudo apt-get install --yes postgresql-client
+      - name: Run real ADMIN authorization probe
+        env:
+          INVENTORY_BASE_URL: ${{ vars.INVENTORY_BASE_URL }}
+          NON_ADMIN_TOKEN: ${{ secrets.INVENTORY_NON_ADMIN_TOKEN }}
+          ADMIN_TOKEN: ${{ secrets.INVENTORY_ADMIN_TOKEN }}
+          DATABASE_URL: ${{ secrets.INVENTORY_DATABASE_URL }}
+          PERSISTENCE_CHECK_SQL_BEFORE: ${{ secrets.INVENTORY_PERSISTENCE_CHECK_SQL_BEFORE }}
+          PERSISTENCE_CHECK_SQL_AFTER: ${{ secrets.INVENTORY_PERSISTENCE_CHECK_SQL_AFTER }}
+        run: |
+          bash 13-week/workshop/04-security-ci/test-admin-authorization.sh
