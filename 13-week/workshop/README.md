@@ -15,7 +15,7 @@
 - LIBRARY_RECORD_TIME: Pending confirmation with the library.
 <!-- CONFIG-END -->
 
-## Scope    
+## Scope
 
 - Analyze the trust boundary between the administrator's React browser client and inventory-service when registering products through POST /api/v1/inventory/products.
 - Include product data, purchase and sale prices, and initialStock.
