@@ -82,3 +82,56 @@ assertions before treating issue #61 as verified.
 Sources: `bysellens-docs/09-microservices/services/04-inventory-service/README.md`,
 `runbook.md`, `07-api/authentication.md`, and
 `07-api/contracts/openapi/inventory-service.yaml`.
+
+## CP8 execution review
+
+The workspace contains `bysellens-docs`, but no executable inventory-service
+repository, build file, migration, deployment configuration or test credentials.
+The inventory runbook says `Implementation repository: TBD`; accessible team
+repositories did not expose an inventory implementation. Therefore the
+authorization probe was not run and no `401`, `403`, `201` or persistence result
+is claimed. No production data or credentials were used.
+
+The available CP4 checks did run locally:
+
+```text
+node YAML parser: security.yml valid
+Git Bash: bash -n test-admin-authorization.sh valid
+actionlint: unavailable
+```
+
+The probe remains reproducible once an isolated service and database are
+provided. It requires `INVENTORY_BASE_URL`, two test JWT secrets,
+`DATABASE_URL`, and both configured persistence queries as described above.
+
+## CP8 minimal demonstration module
+
+The CP8 guide was not available locally, so its permission for a fallback
+module could not be independently confirmed. The following is an isolated
+demonstration module, not BySellens `inventory-service`. It uses Java's
+standard HTTP server, an in-memory product repository, and a real HMAC-signed
+token check for the module's `role` claim. It does not claim RS256 parity,
+database parity, or runtime evidence for BySellens.
+
+From `13-week/workshop/04-security-ci`:
+
+```text
+javac -d demo/out demo/DemoAuthorizationTest.java
+java -cp demo/out demo.DemoAuthorizationTest
+```
+
+Observed locally:
+
+```text
+PASS: non-ADMIN=403, no persistence; ADMIN=201, one persistence.
+```
+
+The test starts an ephemeral localhost server, sends a fictional product with
+a unique run identifier, verifies the signed non-ADMIN request receives `403`
+and is absent from the in-memory repository, then verifies the signed ADMIN
+control receives `201` and is stored. The token and product data are generated
+inside the process and are not printed.
+
+This result validates only the demonstrator's security configuration and
+in-memory persistence. The real BySellens service, PostgreSQL persistence,
+RS256 configuration and `test-admin-authorization.sh` remain unexecuted.
