@@ -25,3 +25,7 @@
 ## Pending information
 
 - Library call number and visit record date and time in America/Bogota remain pending confirmation with the library.
+
+## CP7 review
+
+- Issues #61, #67 and #62 were reviewed against STRIDE: E-01, S-01 and T-01 respectively. Each has verifiable acceptance criteria; issue #61 also contains the [B] book-derived criterion. Project inclusion remains not independently verified.
