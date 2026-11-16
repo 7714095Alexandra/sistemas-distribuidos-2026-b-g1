@@ -1,25 +1,27 @@
-# ADR-C3-02: <title>
-
-> Template. Replace every `<...>` and delete this note. Text left as `<...>` counts as missing.
+# ADR-C3-02: Protect inventory data with backups
 
 ## Status
 
-<Proposed or Accepted>
+Proposed.
 
 ## Context
 
-<Which problem of your system forces this decision; cite the section of the design note.>
+The BySellens inventory database stores product quantities and inventory movements. If data is lost or damaged, the system could show incorrect stock or be unable to process inventory operations.
+
+This decision supports the disaster recovery section of the architecture design note.
 
 ## Decision
 
-<What you decide, in one paragraph.>
+I propose creating regular backups of the inventory database and storing them in a separate location from the primary database. I will also test the restoration process to verify that the backups can be used to recover the data after a failure. The backup frequency and retention period must match the recovery objectives defined in the architecture design note.
 
 ## Alternatives considered
 
-- <Alternative 1>: <why it was rejected>
-- <Alternative 2>: <why it was rejected>
+- **Keep only one database without backups:** This option is simpler and has a lower storage cost, but data could be permanently lost after a failure.
+
+- **Export the database manually:** Manual exports can provide a copy of the data, but they depend on a person remembering to perform them and may be outdated.
 
 ## Consequences
 
-- Positive: <...>
-- Negative: <...>
+- **Positive:** Backups provide a way to restore inventory data after accidental loss or corruption.
+
+- **Negative:** Backups require additional storage, monitoring, and regular restoration tests.
